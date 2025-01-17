@@ -1,29 +1,85 @@
-# Target module name
-TARGET ?= test
+# SPDX-License-Identifier: GPL-2.0
+VERSION = 1
+PATCHLEVEL = 0
+SUBLEVEL = 0
+EXTRAVERSION =
+NAME = PDM
 
-# PATH CONFIG
-ROOT_PATH := $(shell pwd)
-SRC_DIR := src
-INCLUDE_DIR := include
-BUILD_DIR := _build
-KDIR ?= /lib/modules/$(shell uname -r)/build
+# ---------------------------------------------------------------------------
+# *DOCUMENTATION*
+# To see a list of typical targets execute "make help"
+# More info can be located in ./README
+# Comments in this file are targeted only to the developer, do not
+# expect to learn how to build the kernel reading this file.
+# ---------------------------------------------------------------------------
 
-ifeq ($(KERNELRELEASE),) # Makefile
-
-default:
-	$(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(ROOT_PATH) modules
-
-clean:
-	$(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(ROOT_PATH) clean
-	@rm -rf $(BUILD_DIR)
-
-else # KBuild
-
-obj-m := $(TARGET).o
-
-$(TARGET)-objs := $(SRC_DIR)/proc.o
-
-# Use relative path for include directory
-ccflags-y := -I$(ROOT_PATH)/$(INCLUDE_DIR)
-
+ifeq ($(filter output-sync,$(.FEATURES)),)
+$(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
 endif
+
+$(if $(filter __%, $(MAKECMDGOALS)), \
+	$(error targets prefixed with '__' are only for internal use))
+
+# ---------------------------------------------------------------------------
+# That's our default target when none is given on the command line
+# ---------------------------------------------------------------------------
+PHONY := __all
+__all:
+
+this-makefile := $(lastword $(MAKEFILE_LIST))
+m_abs_srctree := $(realpath $(dir $(this-makefile)))
+m_abs_objtree := $(CURDIR)
+
+
+# ---------------------------------------------------------------------------
+# Mbuild will save output files in the current working directory.
+# This does not need to match to the root of the kernel source tree.
+#
+# For example, you can do this:
+#
+#  cd /dir/to/store/output/files; make -f /dir/to/kernel/source/Makefile
+#
+# If you want to save output files in a different location, there are
+# two syntaxes to specify it.
+#
+# 1) O=
+# Use "make O=dir/to/store/output/files/"
+#
+# 2) Set MBUILD_OUTPUT
+# Set the environment variable MBUILD_OUTPUT to point to the output directory.
+# export MBUILD_OUTPUT=dir/to/store/output/files/; make
+#
+# The O= assignment takes precedence over the MBUILD_OUTPUT environment
+# variable.
+
+# Do we want to change the working directory?
+# ---------------------------------------------------------------------------
+ifeq ("$(origin MO)", "command line")
+  MBUILD_OUTPUT := $(MO)
+endif
+
+ifneq ($(MBUILD_OUTPUT),)
+$(shell mkdir -p "$(MBUILD_OUTPUT)")
+m_abs_objtree := $(realpath $(MBUILD_OUTPUT))
+$(if $(m_abs_objtree),,$(error failed to create output directory "$(MBUILD_OUTPUT)"))
+endif # ifneq ($(MBUILD_OUTPUT),)
+
+__all: all
+
+PHONY += modules
+modules:
+	$(info m_abs_objtree: $(m_abs_objtree))
+	$(info m_abs_srctree: $(m_abs_srctree))
+	# $(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(PWD)/$(MOUTPUT)" modules
+
+PHONY += clean
+clean:
+	$(info m_abs_objtree: $(m_abs_objtree))
+	# $(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(PWD)/$(MOUTPUT)" clean
+
+PHONY += all
+all: modules
+
+# Declare the contents of the PHONY variable as phony.  We keep that
+# information in a variable so we can use it in if_changed and friends.
+.PHONY: $(PHONY)

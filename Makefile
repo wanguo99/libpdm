@@ -1,3 +1,4 @@
+#Makefile
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 1
 PATCHLEVEL = 0
@@ -62,7 +63,23 @@ ifneq ($(MBUILD_OUTPUT),)
 $(shell mkdir -p "$(MBUILD_OUTPUT)")
 m_abs_objtree := $(realpath $(MBUILD_OUTPUT))
 $(if $(m_abs_objtree),,$(error failed to create output directory "$(MBUILD_OUTPUT)"))
+$(shell ln -sf $(m_abs_srctree)/Kbuild $(m_abs_objtree)/Kbuild)
+# $(shell ln -sf $(m_abs_srctree)/src $(m_abs_objtree)/src)
 endif # ifneq ($(MBUILD_OUTPUT),)
+
+ifeq ($(m_abs_srctree),$(m_abs_objtree))
+  # building in the source tree
+  m_srctree := .
+  VPATH		:=
+else
+  m_srctree := $(m_abs_srctree)
+  VPATH		:= $(m_srctree)
+endif
+
+m_objtree	:= .
+
+export m_srctree m_objtree VPATH
+
 
 __all: all
 
@@ -70,12 +87,16 @@ PHONY += modules
 modules:
 	$(info m_abs_objtree: $(m_abs_objtree))
 	$(info m_abs_srctree: $(m_abs_srctree))
-	# $(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(PWD)/$(MOUTPUT)" modules
+	$(info m_objtree: $(m_objtree))
+	$(info m_srctree: $(m_srctree))
+	$(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(m_abs_objtree)" modules
 
 PHONY += clean
 clean:
-	$(info m_abs_objtree: $(m_abs_objtree))
-	# $(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(PWD)/$(MOUTPUT)" clean
+	$(MAKE) -C $(KDIR) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M="$(m_abs_objtree)" clean
+ifneq ($(m_abs_srctree),$(m_abs_objtree))
+	@rm -rf $(m_abs_objtree)
+endif
 
 PHONY += all
 all: modules

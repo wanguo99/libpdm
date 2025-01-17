@@ -1,6 +1,6 @@
-# Target module name
-TARGET := bmc_pal
+# Kbuild
+
+TARGET := $(m_objtree)/bmc_pal
 obj-m := $(TARGET).o
 
-SRC_DIR := source
-$(TARGET)-objs := $(SRC_DIR)/test.o
+$(TARGET)-objs := $(m_objtree)/src/test.o

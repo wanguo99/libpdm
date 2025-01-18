@@ -1,6 +1,0 @@
-# Kbuild
-
-TARGET := $(m_objtree)/test
-obj-m := $(TARGET).o
-
-$(TARGET)-objs := $(m_objtree)/src/test.o

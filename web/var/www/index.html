@@ -77,7 +77,7 @@
     </div>
 
     <script type="text/javascript">
-        const wsUri = "ws://10.10.0.201:8080";
+        const wsUri = "ws://10.10.0.221:8080";
         const logElement = document.getElementById('log');
 
         function log(message) {
@@ -101,14 +101,10 @@
 
             websocket.onerror = function(event) {
                 log(`WebSocket error observed: ${event}`);
-                alert("WebSocket error: Check the console for more details.");
             };
 
             websocket.onclose = function(event) {
                 log(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
-                if (event.wasClean === false) {
-                    alert("WebSocket connection unexpectedly closed. Please check your network settings.");
-                }
             };
         }
 
@@ -133,11 +129,9 @@
                     log(`Sent message: ${message}`);
                 } catch (error) {
                     log(`Failed to send message: ${error.message}`);
-                    alert("Failed to publish MQTT event. Check the console for more details.");
                 }
             } else {
                 log("Please select a topic and enter a payload.");
-                alert("Please select a topic and enter a payload.");
             }
         });
 

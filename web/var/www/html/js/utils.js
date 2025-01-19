@@ -24,6 +24,15 @@ class Logger {
         this.updateLogOutput(message, 'ERROR');
     }
 
+    clear() {
+        if (!this.logOutputElement) return;
+
+        // 清空日志输出区域的所有子元素
+        while (this.logOutputElement.firstChild) {
+            this.logOutputElement.removeChild(this.logOutputElement.firstChild);
+        }
+    }
+
     updateLogOutput(message, level) {
         if (!this.logOutputElement) return;
 

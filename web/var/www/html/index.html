@@ -109,6 +109,7 @@
 
     <!-- 日志输出区域 -->
     <h2>Log Output</h2>
+    <button id="clearLogButton">Clear Log</button>
     <div id="log-output"></div>
 
     <script type="module">
@@ -136,8 +137,11 @@
             // Add event listener for the button click and keydown event
             sendButton.addEventListener('click', sendMessage);
             messageInput.addEventListener('keydown', handleKeyDown);
-            document.getElementById('clearMessagesButton').addEventListener('click', clearMessages);
             document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
+            document.getElementById('clearMessagesButton').addEventListener('click', clearMessages);
+            document.getElementById('clearLogButton').addEventListener('click', () => {
+                logger.clear();
+            });
         });
 
         window.addEventListener('beforeunload', () => {

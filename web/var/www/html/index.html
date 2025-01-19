@@ -4,26 +4,95 @@
     <meta charset="UTF-8">
     <title>WebSocket Client</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-        .message { margin: 5px 0; }
-        input, select { width: calc(100% - 22px); padding: 5px; margin-bottom: 10px; }
-        button { padding: 5px 10px; }
-        #log-output { border: 1px solid #ddd; padding: 10px; margin-top: 20px; background-color: #f9f9f9; }
-        .log-entry { margin: 5px 0; }
-        .log-level-error { color: red; }
-        .log-level-warn { color: orange; }
-        .log-level-info { color: black; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333333; /* 设置深灰色背景 */
+            color: #b3b3b3; /* 设置更浅一点的灰色文本颜色 */
+            padding: 20px; /* Add padding to the body for spacing */
+        }
+        #messages {
+            width: 75%; /* 设置消息区域宽度为75% */
+            border: 1px solid #444; /* 更暗的边框颜色 */
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #444444; /* 消息区域的深灰色背景 */
+            color: #b3b3b3; /* 消息文本颜色 */
+        }
+        .message {
+            margin: 5px 0;
+        }
+        input, select {
+            padding: 5px;
+            margin-bottom: 10px;
+            background-color: #4d4d4d; /* 输入框和选择菜单的深灰色背景 */
+            color: #b3b3b3; /* 输入框和选择菜单的文本颜色 */
+            border: 1px solid #444; /* 边框颜色 */
+            display: inline-block; /* 允许与其他元素在同一行显示 */
+        }
+        select {
+            width: auto; /* 让选择菜单根据内容自适应宽度 */
+        }
+        button {
+            padding: 5px 10px;
+            background-color: #4d4d4d; /* 按钮的深灰色背景 */
+            color: #b3b3b3; /* 按钮的文本颜色 */
+            border: 1px solid #444; /* 边框颜色 */
+            display: inline-block; /* 按钮在行内显示 */
+            margin-bottom: 10px; /* 添加底部间距 */
+            width: auto; /* 让按钮根据内容自适应宽度 */
+        }
+        #log-output {
+            border: 1px solid #444; /* 更暗的日志输出边框 */
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #444444; /* 日志输出区域的深灰色背景 */
+            color: #b3b3b3; /* 日志文本颜色 */
+            max-width: 50%; /* 设置日志输出区域宽度为半屏 */
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-level-error {
+            color: #ff5722; /* 错误级别的日志条目的红色 */
+        }
+        .log-level-warn {
+            color: #fdd835; /* 警告级别的日志条目的橙色 */
+        }
+        .log-level-info {
+            color: #b3b3b3; /* 信息级别的日志条目的更浅灰色 */
+        }
+
+        /* 新增清屏按钮的样式 */
+        #clearMessagesButton {
+            padding: 5px 10px;
+            background-color: #4d4d4d;
+            color: #b3b3b3;
+            border: 1px solid #444;
+            display: inline-block; /* 确保按钮在行内显示 */
+            margin-bottom: 10px; /* 添加底部间距 */
+            width: auto; /* 让按钮根据内容自适应宽度 */
+        }
+
+        /* 确保所有文本左对齐 */
+        body, input, select, button, #log-output {
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <h1>WebSocket Client</h1>
+    <button id="clearMessagesButton">clear messages</button>
     <div id="messages"></div>
+
+    <!-- Websocket 发送测试 -->
+    <h2>Sent Message Test</h2>
     <input type="text" id="messageInput" placeholder="Type a message..." />
     <button id="sendButton">Send</button>
 
-    <!-- 新增 MQTT 发布区域 -->
-    <h2>Publish MQTT Event</h2>
+    <!-- MQTT 发布测试 -->
+    <h2>MQTT Publish Test</h2>
     <select id="topicSelect">
         <option value="">Select a topic...</option>
         <option value="topic1">Topic 1</option>
@@ -33,7 +102,7 @@
     <input type="text" id="payloadInput" placeholder="Enter payload..." />
     <button id="publishButton">Publish</button>
 
-    <!-- 新增日志输出区域 -->
+    <!-- 日志输出区域 -->
     <h2>Log Output</h2>
     <div id="log-output"></div>
 
@@ -46,7 +115,6 @@
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
 
-        // 创建 Logger 实例，指定日志输出区域的 ID
         const logger = new Logger('log-output');
 
         // Connect to WebSocket server on page load and handle connection close on unload
@@ -60,11 +128,10 @@
                 logger.error(`Failed to connect to WebSocket server: ${error.message}`);
             }
 
-            // Add event listener for the send button and keydown event on the input field
+            // Add event listener for the button click and keydown event
             sendButton.addEventListener('click', sendMessage);
             messageInput.addEventListener('keydown', handleKeyDown);
-
-            // Add event listener for the publish button
+            document.getElementById('clearMessagesButton').addEventListener('click', clearMessages);
             document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
         });
 
@@ -90,6 +157,30 @@
             }
         }
 
+        async function publishMqttEvent() {
+            const topic = document.getElementById('topicSelect').value;
+            const payload = document.getElementById('payloadInput').value.trim();
+
+            if (!topic || !payload) {
+                logger.warn("Please select a topic and enter a payload.");
+                return;
+            }
+
+            try {
+                document.getElementById('publishButton').disabled = true; // Provide UI feedback while publishing
+                await wsManager.publishMqttEvent(topic, payload);
+                const message = `Published MQTT event with topic: ${topic} and payload: ${payload}`;
+                logger.info(message);
+                appendMessage(`Sent MQTT: ${message}`); // 将发布的消息添加到 messages 区域
+                document.getElementById('payloadInput').value = ''; // Clear the payload input after successful publish
+                document.getElementById('publishButton').disabled = false;
+            } catch (error) {
+                logger.error(`Failed to publish MQTT event: ${error.message}`);
+                appendMessage(`Failed to send MQTT: ${error.message}`); // 如果发布失败，也记录到 messages 区域
+                document.getElementById('publishButton').disabled = false;
+            }
+        }
+
         function handleKeyDown(event) {
             // Check if the Enter key was pressed (Key code 13 or 'Enter')
             if (event.key === 'Enter') {
@@ -106,25 +197,11 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        async function publishMqttEvent() {
-            const topic = document.getElementById('topicSelect').value;
-            const payload = document.getElementById('payloadInput').value.trim();
-
-            if (!topic || !payload) {
-                logger.warn("Please select a topic and enter a payload.");
-                return;
+        function clearMessages() {
+            while (messagesDiv.firstChild) {
+                messagesDiv.removeChild(messagesDiv.firstChild);
             }
-
-            try {
-                document.getElementById('publishButton').disabled = true; // Provide UI feedback while publishing
-                await wsManager.publishMqttEvent(topic, payload);
-                logger.info(`Published MQTT event with topic: ${topic} and payload: ${payload}`);
-                document.getElementById('payloadInput').value = ''; // Clear the payload input after successful publish
-                document.getElementById('publishButton').disabled = false;
-            } catch (error) {
-                logger.error(`Failed to publish MQTT event: ${error.message}`);
-                document.getElementById('publishButton').disabled = false;
-            }
+            logger.info(`clear messages`);
         }
     </script>
 </body>

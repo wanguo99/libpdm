@@ -95,11 +95,16 @@
     <h2>MQTT Publish Test</h2>
     <select id="topicSelect">
         <option value="">Select a topic...</option>
-        <option value="topic1">Topic 1</option>
-        <option value="topic2">Topic 2</option>
+        <option value="topic1">Topic_1</option>
+        <option value="topic2">Topic_2</option>
         <!-- Add more topics as needed -->
     </select>
-    <input type="text" id="payloadInput" placeholder="Enter payload..." />
+    <select id="payloadSelect" placeholder="Select payload...">
+        <option value="">Select a payload...</option>
+        <option value="topic1">Payload_1</option>
+        <option value="topic2">Payload_2</option>
+        <!-- Add more topics as needed -->
+    </select>
     <button id="publishButton">Publish</button>
 
     <!-- 日志输出区域 -->
@@ -159,7 +164,7 @@
 
         async function publishMqttEvent() {
             const topic = document.getElementById('topicSelect').value;
-            const payload = document.getElementById('payloadInput').value.trim();
+            const payload = document.getElementById('payloadSelect').value;
 
             if (!topic || !payload) {
                 logger.warn("Please select a topic and enter a payload.");
@@ -172,7 +177,7 @@
                 const message = `Published MQTT event with topic: ${topic} and payload: ${payload}`;
                 logger.info(message);
                 appendMessage(`Sent MQTT: ${message}`); // 将发布的消息添加到 messages 区域
-                document.getElementById('payloadInput').value = ''; // Clear the payload input after successful publish
+                // document.getElementById('payloadSelect').value = ''; // Clear the payload input after successful publish
                 document.getElementById('publishButton').disabled = false;
             } catch (error) {
                 logger.error(`Failed to publish MQTT event: ${error.message}`);

@@ -36,9 +36,11 @@ static int callback_websocket(struct lws *wsi,
 
             cJSON *type = cJSON_GetObjectItemCaseSensitive(root, "type");
             cJSON *topic = cJSON_GetObjectItemCaseSensitive(root, "topic");
+            cJSON *index = cJSON_GetObjectItemCaseSensitive(root, "index");
             cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, "payload");
 
             char *extracted_topic = NULL;
+            char *extracted_index = NULL;
             char *extracted_payload = NULL;
 
             // Check if the type is "publish_mqtt_event" and both topic and payload are strings
@@ -48,10 +50,12 @@ static int callback_websocket(struct lws *wsi,
                 // Extract the values directly into local variables
                 extracted_topic = strdup(topic->valuestring); // 使用 strdup 复制字符串并分配内存
                 extracted_payload = strdup(payload->valuestring);
+                extracted_index = strdup(index->valuestring);
 
-                if (extracted_topic == NULL || extracted_payload == NULL) {
+                if (extracted_topic == NULL || extracted_index == NULL || extracted_payload == NULL) {
                     // 如果其中一个复制失败，确保释放已分配的内存
                     free(extracted_topic);
+                    free(extracted_index);
                     free(extracted_payload);
                     cJSON_Delete(root);
                     fprintf(stderr, "Memory allocation failed.\n");
@@ -59,6 +63,7 @@ static int callback_websocket(struct lws *wsi,
                 }
 
                 printf("Extracted topic: %s\n", extracted_topic);
+                printf("Extracted index: %s\n", extracted_index);
                 printf("Extracted payload: %s\n", extracted_payload);
 
 				if (!strcmp(extracted_topic, "SWITCH") && !strcmp(extracted_payload, "ON")) {

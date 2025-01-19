@@ -99,6 +99,13 @@
         <option value="DIMMER">DIMMER</option>
         <!-- Add more topics as needed -->
     </select>
+    <select id="indexSelect" placeholder="Select index...">
+        <option value="">Select a index...</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <!-- Add more payloads as needed -->
+    </select>
     <select id="payloadSelect" placeholder="Select payload...">
         <option value="">Select a payload...</option>
         <option value="ON">ON</option>
@@ -168,24 +175,39 @@
 
         async function publishMqttEvent() {
             const topic = document.getElementById('topicSelect').value;
+            const index = document.getElementById('indexSelect').value;
             const payload = document.getElementById('payloadSelect').value;
 
-            if (!topic || !payload) {
-                logger.warn("Please select a topic and enter a payload.");
+            // Validate input
+            if (!topic || !index || !payload) {
+                logger.warn("Please select a topic, an index, and enter a payload.");
                 return;
             }
 
             try {
-                document.getElementById('publishButton').disabled = true; // Provide UI feedback while publishing
-                await wsManager.publishMqttEvent(topic, payload);
-                const message = `Published MQTT event with topic: ${topic} and payload: ${payload}`;
+                // Disable the button to provide UI feedback while publishing
+                document.getElementById('publishButton').disabled = true;
+
+                // Log the attempt to publish the MQTT event
+                logger.info(`Attempting to publish MQTT event with topic:${topic}, index:${index}, payload:${payload}`);
+
+                // Publish the MQTT event using WebSocketManager
+                await wsManager.publishMqttEvent(topic, index, payload);
+
+                // Log success and append message to messages area
+                const message = `Published MQTT event with topic:${topic}, index:${index}, payload:${payload}`;
                 logger.info(message);
-                appendMessage(`Sent MQTT: ${message}`); // 将发布的消息添加到 messages 区域
-                // document.getElementById('payloadSelect').value = ''; // Clear the payload input after successful publish
-                document.getElementById('publishButton').disabled = false;
+                appendMessage(`Sent MQTT: ${message}`);
+
+                // Optionally clear the payload selection after successful publish
+                // document.getElementById('payloadSelect').value = '';
+
             } catch (error) {
+                // Log error and append failure message to messages area
                 logger.error(`Failed to publish MQTT event: ${error.message}`);
-                appendMessage(`Failed to send MQTT: ${error.message}`); // 如果发布失败，也记录到 messages 区域
+                appendMessage(`Failed to send MQTT: ${error.message}`);
+            } finally {
+                // Ensure the button is re-enabled regardless of success or failure
                 document.getElementById('publishButton').disabled = false;
             }
         }

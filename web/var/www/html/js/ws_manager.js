@@ -76,7 +76,7 @@ class WebSocketManager {
         this.messageCallbacks.push(callback);
     }
 
-    async publishMqttEvent(topic, payload) {
+    async publishMqttEvent(topic, index, payload) {
         this.logger.info("Checking WebSocket status...");
 
         // Check if WebSocket is open and try to reconnect if necessary
@@ -85,27 +85,29 @@ class WebSocketManager {
             try {
                 await this.connect();
             } catch (error) {
-                this.logger.error("Failed to retrieve WebSocket URI and connect.");
+                this.logger.error(`Failed to reconnect: ${error.message}`);
                 return;
             }
         }
 
         this.logger.info('WebSocket is open, proceeding to send message.');
 
-        if (topic && payload !== undefined) {
+        if (topic && index !== undefined && payload !== undefined) {
             try {
                 const message = JSON.stringify({
                     type: 'publish_mqtt_event',
                     topic: topic,
+                    index: index, // Add the index field to the message object
                     payload: payload
                 });
-                this.logger.info(`Constructed message: ${message}`);
+                this.logger.info(`Constructed MQTT event message: ${message}`);
                 this.sendMessage(message);
+                this.logger.info('Message sent successfully.');
             } catch (error) {
-                this.logger.error(`Failed to send message: ${error.message}`);
+                this.logger.error(`Failed to construct or send message: ${error.message}`);
             }
         } else {
-            this.logger.error("Please select a topic and enter a payload.");
+            this.logger.error("Please select a topic, an index, and enter a payload.");
         }
     }
 }

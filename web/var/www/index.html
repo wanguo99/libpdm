@@ -76,70 +76,29 @@
         <pre id="log"></pre>
     </div>
 
-    <script type="text/javascript">
-        const wsUri = "ws://10.10.0.221:8080";
-        const logElement = document.getElementById('log');
+    <!-- 引入外部 JavaScript 文件 -->
+    <script type="module" src="./javascript/ws-handler.js"></script>
+    <script type="module" src="./javascript/mqtt-handler.js"></script>
+    <script type="module">
+        import { getWsUri, connectWebSocket } from './javascript/ws-handler.js';
+        import { publishMqttEvent } from './javascript/mqtt-handler.js';
 
-        function log(message) {
-            const now = new Date().toISOString();
-            logElement.innerHTML += `[${now}] ${message}\n`;
-            logElement.scrollTop = logElement.scrollHeight;
-        }
-
-        let websocket;
-
-        function connectWebSocket() {
-            websocket = new WebSocket(wsUri);
-
-            websocket.onopen = function(event) {
-                log("Connected to WebSocket server.");
-            };
-
-            websocket.onmessage = function(event) {
-                log(`Message from server: ${event.data}`);
-            };
-
-            websocket.onerror = function(event) {
-                log(`WebSocket error observed: ${event}`);
-            };
-
-            websocket.onclose = function(event) {
-                log(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
-            };
-        }
+        window.onload = async function() {
+            console.log("Attempting to fetch WebSocket URI...");
+            try {
+                const wsUri = await getWsUri();
+                console.log(`Fetched WebSocket URI: ${wsUri}`);
+                connectWebSocket(wsUri);
+            } catch (error) {
+                console.error("Failed to fetch WebSocket URI. Please check your network connection or server status.");
+            }
+        };
 
         document.getElementById('publishEventBtn').addEventListener('click', function() {
-            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-                log("WebSocket is not open. Attempting to reconnect...");
-                connectWebSocket();
-                return;
-            }
-
             const topic = document.getElementById('topicSelect').value.trim();
             const payload = document.getElementById('payloadInput').value.trim();
-
-            if (topic && payload) {
-                try {
-                    const message = JSON.stringify({
-                        type: 'publish_mqtt_event',
-                        topic: topic,
-                        payload: payload
-                    });
-                    websocket.send(message);
-                    log(`Sent message: ${message}`);
-                } catch (error) {
-                    log(`Failed to send message: ${error.message}`);
-                }
-            } else {
-                log("Please select a topic and enter a payload.");
-            }
+            publishMqttEvent(topic, payload);
         });
-
-        // 页面加载时尝试建立连接
-        window.onload = function() {
-            log("Attempting to connect to WebSocket server...");
-            connectWebSocket();
-        };
     </script>
 </body>
 </html>

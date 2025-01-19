@@ -1,44 +1,44 @@
 // js/utils.js
 
-const LOG_LEVELS = {
-    ERROR: 0,
-    WARN: 1,
-    INFO: 2,
-    DEBUG: 3,
-};
+class Logger {
+    constructor(logOutputId) {
+        this.logOutputId = logOutputId;
+        this.logOutputElement = logOutputId ? document.getElementById(logOutputId) : null;
+    }
 
-let currentLogLevel = LOG_LEVELS.INFO;
+    formatLog(level, ...args) {
+        const timestamp = new Date().toISOString();
+        return `[${timestamp}] [${level}] ${args.map(arg => JSON.stringify(arg)).join(' ')}`;
+    }
 
-if (typeof process !== 'undefined' && process.env) {
-    const envLogLevel = process.env.LOG_LEVEL?.toUpperCase();
-    if (envLogLevel in LOG_LEVELS) {
-        currentLogLevel = LOG_LEVELS[envLogLevel];
+    updateLogOutput(message, level) {
+        if (!this.logOutputElement) return;
+
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry log-level-${level.toLowerCase()}`;
+
+        logEntry.textContent = message;
+        this.logOutputElement.appendChild(logEntry);
+        this.logOutputElement.scrollTop = this.logOutputElement.scrollHeight; // 滚动到底部
+    }
+
+    info(...args) {
+        const message = this.formatLog('INFO', ...args);
+        console.info(message);
+        this.updateLogOutput(message, 'INFO');
+    }
+
+    warn(...args) {
+        const message = this.formatLog('WARN', ...args);
+        console.warn(message);
+        this.updateLogOutput(message, 'WARN');
+    }
+
+    error(...args) {
+        const message = this.formatLog('ERROR', ...args);
+        console.error(message);
+        this.updateLogOutput(message, 'ERROR');
     }
 }
 
-function formatLog(level, ...args) {
-    const timestamp = new Date().toISOString();
-    return `[${timestamp}] [${level}] ${args.map(arg => JSON.stringify(arg)).join(' ')}`;
-}
-
-function logIfEnabled(levelName, levelValue, ...args) {
-    if (levelValue <= currentLogLevel) {
-        console[levelName.toLowerCase()](formatLog(levelName, ...args));
-    }
-}
-
-export function logError(...args) {
-    logIfEnabled('ERROR', LOG_LEVELS.ERROR, ...args);
-}
-
-export function logWarn(...args) {
-    logIfEnabled('WARN', LOG_LEVELS.WARN, ...args);
-}
-
-export function logInfo(...args) {
-    logIfEnabled('INFO', LOG_LEVELS.INFO, ...args);
-}
-
-export function logDebug(...args) {
-    logIfEnabled('DEBUG', LOG_LEVELS.DEBUG, ...args);
-}
+export { Logger };

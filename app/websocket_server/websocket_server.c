@@ -20,7 +20,19 @@ static int callback_websocket(struct lws *wsi,
 
             printf("Received message: %s\n", buffer + LWS_PRE);
 
-            // Echo the received message back to the client
+            // Add a prefix to the received message before echoing it back
+            const char *prefix = "[reply] : ";
+            size_t prefix_len = strlen(prefix);
+            if (len + prefix_len > sizeof(buffer) - LWS_PRE - 1) {
+                // If the message with prefix is too long, truncate it
+                len = sizeof(buffer) - LWS_PRE - prefix_len - 1;
+            }
+
+            memmove(buffer + LWS_PRE + prefix_len, buffer + LWS_PRE, len);
+            memcpy(buffer + LWS_PRE, prefix, prefix_len);
+            len += prefix_len;
+
+            // Echo the modified message back to the client
             lws_write(wsi, (unsigned char *)buffer + LWS_PRE, len, LWS_WRITE_TEXT);
             break;
         }

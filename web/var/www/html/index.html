@@ -7,8 +7,13 @@
         body { font-family: Arial, sans-serif; }
         #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
         .message { margin: 5px 0; }
-        input { width: calc(100% - 22px); padding: 5px; margin-bottom: 10px; }
+        input, select { width: calc(100% - 22px); padding: 5px; margin-bottom: 10px; }
         button { padding: 5px 10px; }
+        #log-output { border: 1px solid #ddd; padding: 10px; margin-top: 20px; background-color: #f9f9f9; }
+        .log-entry { margin: 5px 0; }
+        .log-level-error { color: red; }
+        .log-level-warn { color: orange; }
+        .log-level-info { color: black; }
     </style>
 </head>
 <body>
@@ -17,38 +22,80 @@
     <input type="text" id="messageInput" placeholder="Type a message..." />
     <button id="sendButton">Send</button>
 
+    <!-- 新增 MQTT 发布区域 -->
+    <h2>Publish MQTT Event</h2>
+    <select id="topicSelect">
+        <option value="">Select a topic...</option>
+        <option value="topic1">Topic 1</option>
+        <option value="topic2">Topic 2</option>
+        <!-- Add more topics as needed -->
+    </select>
+    <input type="text" id="payloadInput" placeholder="Enter payload..." />
+    <button id="publishButton">Publish</button>
+
+    <!-- 新增日志输出区域 -->
+    <h2>Log Output</h2>
+    <div id="log-output"></div>
+
     <script type="module">
         import { WebSocketManager } from './js/ws_manager.js';
-        import { logInfo, logError } from './js/utils.js';
+        import { Logger } from './js/utils.js';
 
-        const wsManager = new WebSocketManager();
+        const wsManager = new WebSocketManager('ws://10.10.0.221:8080');
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
 
-        // Connect to WebSocket server on page load
-        window.onload = async function() {
+        // 创建 Logger 实例，指定日志输出区域的 ID
+        const logger = new Logger('log-output');
+
+        // Connect to WebSocket server on page load and handle connection close on unload
+        window.addEventListener('load', async () => {
             try {
-                // 使用实际的服务器 IP 地址
-                await wsManager.connect('ws://10.10.0.221:8080');
-                logInfo("Connected to WebSocket server.");
+                await wsManager.connect();
+                logger.info("Connected to WebSocket server.");
                 wsManager.onMessage((message) => {
                     appendMessage(`Received: ${message}`);
                 });
             } catch (error) {
-                logError(`Failed to connect to WebSocket server: ${error.message}`);
+                logger.error(`Failed to connect to WebSocket server: ${error.message}`);
             }
 
-            // Add event listener for the send button
+            // Add event listener for the send button and keydown event on the input field
             sendButton.addEventListener('click', sendMessage);
-        };
+            messageInput.addEventListener('keydown', handleKeyDown);
+
+            // Add event listener for the publish button
+            document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            wsManager.disconnect();
+        });
 
         function sendMessage() {
             const message = messageInput.value.trim();
             if (message) {
-                wsManager.sendMessage(message);
-                appendMessage(`Sent: ${message}`);
-                messageInput.value = '';
+                sendButton.disabled = true; // Provide UI feedback while sending
+                wsManager.sendMessage(message)
+                    .then(() => {
+                        appendMessage(`Sent: ${message}`);
+                        messageInput.value = '';
+                        messageInput.focus(); // Focus back on the input after sending
+                        sendButton.disabled = false;
+                    })
+                    .catch(error => {
+                        logger.error(`Failed to send message: ${error.message}`);
+                        sendButton.disabled = false;
+                    });
+            }
+        }
+
+        function handleKeyDown(event) {
+            // Check if the Enter key was pressed (Key code 13 or 'Enter')
+            if (event.key === 'Enter') {
+                sendMessage();
+                event.preventDefault(); // Prevent form submission or default action
             }
         }
 
@@ -58,6 +105,27 @@
             messageElement.textContent = text;
             messagesDiv.appendChild(messageElement);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function publishMqttEvent() {
+            const topic = document.getElementById('topicSelect').value;
+            const payload = document.getElementById('payloadInput').value.trim();
+
+            if (!topic || !payload) {
+                logger.warn("Please select a topic and enter a payload.");
+                return;
+            }
+
+            try {
+                document.getElementById('publishButton').disabled = true; // Provide UI feedback while publishing
+                await wsManager.publishMqttEvent(topic, payload);
+                logger.info(`Published MQTT event with topic: ${topic} and payload: ${payload}`);
+                document.getElementById('payloadInput').value = ''; // Clear the payload input after successful publish
+                document.getElementById('publishButton').disabled = false;
+            } catch (error) {
+                logger.error(`Failed to publish MQTT event: ${error.message}`);
+                document.getElementById('publishButton').disabled = false;
+            }
         }
     </script>
 </body>

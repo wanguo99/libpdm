@@ -3,276 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <title>WebSocket Client</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #333333;
-            color: #b3b3b3;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-        #container {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-        .output-pane {
-            width: 75%;
-            height: 300px;
-            overflow-y: scroll;
-            padding: 10px;
-            margin-bottom: 10px;
-            resize: both;
-            background-color: #444444;
-            color: #b3b3b3;
-            border: 1px solid #444;
-            text-align: left;
-            min-width: 200px; /* Added minimum width */
-            min-height: 100px; /* Added minimum height */
-        }
-        .section {
-            margin-top: 20px;
-        }
-        input, select, button {
-            padding: 5px;
-            margin-bottom: 10px;
-            background-color: #4d4d4d;
-            color: #b3b3b3;
-            border: 1px solid #444;
-            display: inline-block;
-        }
-        .message, .log-entry {
-            margin: 5px 0;
-        }
-        .resize-handle {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 10px;
-            height: 10px;
-            background-color: #666;
-            cursor: se-resize;
-        }
-        .log-level-debug { background-color: #f0f0f0; color: #000; }
-        .log-level-info { background-color: #d9edf7; color: #31708f; }
-        .log-level-warn { background-color: #fcf8e3; color: #8a6d3b; }
-        .log-level-error { background-color: #f2dede; color: #a94442; }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div id="container">
-    <h1>WebSocket Client</h1>
+    <!-- Header -->
+    <header class="header">
+        <h1>WebSocket Client</h1>
+    </header>
 
-    <!-- Messages Output Section -->
-    <div class="section">
-        <h2>Messages Output:</h2>
-        <button id="clearMessagesButton">Clear Messages</button>
-        <div id="messages" class="output-pane"></div>
-    </div>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Left Column -->
+        <section class="left-column">
+            <!-- WebSocket Client Sections -->
+            <div class="section">
+                <h2 class="subheader">Messages Output:</h2>
+                <button id="clearMessagesButton">Clear Messages</button>
+                <div id="messages" class="output-pane"></div>
+            </div>
 
-    <!-- Sent Message Test Section -->
-    <div class="section">
-        <h2>Sent Text Message Test:</h2>
-        <input type="text" id="textMessageInput" placeholder="Type a message..." />
-        <button id="sendTextButton">Send</button>
-    </div>
+            <!-- Log Output Section -->
+            <div class="section">
+                <h2 class="subheader">Log Output:</h2>
+                <button id="clearLogButton">Clear Log</button>
+                <div id="log-output" class="output-pane"></div>
+            </div>
+        </section>
 
-    <!-- MQTT Publish Test Section -->
-    <div class="section">
-        <h2>MQTT Publish Test:</h2>
-        <select id="topicSelect">
-            <option value="">Select a topic...</option>
-            <option value="SWITCH">SWITCH</option>
-            <option value="DIMMER">DIMMER</option>
-        </select>
-        <select id="indexSelect">
-            <option value="">Select an index...</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-        </select>
-        <select id="stateSelect">
-            <option value="">Select a state...</option>
-            <option value="ON">ON</option>
-            <option value="OFF">OFF</option>
-        </select>
-        <button id="publishButton">Publish</button>
-    </div>
+        <!-- Right Column -->
+        <section class="right-column">
+            <!-- Sent Message Test Section -->
+            <div class="section sent-message-test">
+                <h2 class="subheader">Sent Text Message Test:</h2>
+                <input type="text" id="textMessageInput" placeholder="Type a message..." />
+                <button id="sendTextButton">Send</button>
+            </div>
 
-    <!-- Log Output Section -->
-    <div class="section">
-        <h2>Log Output:</h2>
-        <button id="clearLogButton">Clear Log</button>
-        <div id="log-output" class="output-pane"></div>
-    </div>
+            <!-- MQTT Publish Test Section -->
+            <div class="section">
+                <h2 class="subheader">MQTT Publish Test:</h2>
+                <select id="topicSelect">
+                    <option value="">Select a topic...</option>
+                    <option value="SWITCH">SWITCH</option>
+                    <option value="DIMMER">DIMMER</option>
+                </select>
+                <select id="indexSelect">
+                    <option value="">Select an index...</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+                <select id="stateSelect">
+                    <option value="">Select a state...</option>
+                    <option value="ON">ON</option>
+                    <option value="OFF">OFF</option>
+                </select>
+                <button id="publishButton">Publish</button>
+            </div>
+        </section>
+    </main>
 </div>
 
-<script type="module">
-import { WebSocketManager } from './js/ws_manager.js';
-import { Logger } from './js/utils.js';
-
-const messagesDiv = document.getElementById('messages');
-const logOutputDiv = document.getElementById('log-output');
-const logger = new Logger(logOutputDiv);
-let wsManager;
-
-// Utility function to make elements resizable with min size constraints
-function makeResizable(div) {
-    const resizeHandle = document.createElement("div");
-    resizeHandle.classList.add("resize-handle");
-    div.appendChild(resizeHandle);
-
-    let startX, startY, startWidth, startHeight;
-
-    resizeHandle.onmousedown = function(e) {
-        e.preventDefault();
-        startX = e.clientX;
-        startY = e.clientY;
-        startWidth = div.offsetWidth;
-        startHeight = div.offsetHeight;
-
-        document.onmousemove = function(e) {
-            const newWidth = Math.max(startWidth + (e.clientX - startX), div.style.minWidth.replace('px', ''));
-            const newHeight = Math.max(startHeight + (e.clientY - startY), div.style.minHeight.replace('px', ''));
-            div.style.width = `${newWidth}px`;
-            div.style.height = `${newHeight}px`;
-        };
-
-        document.onmouseup = function() {
-            document.onmousemove = document.onmouseup = null;
-        }
-    }
-}
-
-async function initializeWebSocket() {
-    try {
-        if (!wsManager) {
-            wsManager = new WebSocketManager('ws://10.10.0.221:8080');
-
-            // Setup message handling after successfully connecting
-            wsManager.onMessage = async (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message);
-                    if (parsedMessage.type === 'MQTT_GET_CONFIG_RESPONSE') {
-                        logger.info("MQTT configuration received successfully.");
-                        const config = parsedMessage.payload;
-                        console.log("Received MQTT config:", config);
-                        // Update UI or internal state with the received configuration
-                    } else {
-                        appendMessage(`Received: ${message}`);
-                    }
-                } catch (error) {
-                    logger.error(`Failed to parse message: ${error.message}`);
-                    appendMessage(`Received malformed message: ${message}`);
-                }
-            };
-        }
-
-        await wsManager.connect();
-        logger.info("WebSocket connection established.");
-        requestMqttConfig(); // Directly call without awaiting since it's not necessary here
-    } catch (error) {
-        logger.error(`Failed to connect to WebSocket server: ${error.message}`);
-    }
-}
-
-// Common function for sending messages and handling UI updates
-async function handleSendMessage(type, payload, buttonId) {
-    const button = document.getElementById(buttonId);
-    try {
-        button.disabled = true;
-        logger.info(`Attempting to send ${type} message: ${JSON.stringify(payload)}`);
-        await wsManager.sendMessage(type, payload);
-        appendMessage(`Sent ${type}: ${JSON.stringify(payload)}`, 'info');
-    } catch (error) {
-        logger.error(`Failed to send ${type}: ${error.message}`);
-        appendMessage(`Failed to send ${type}: ${error.message}`, 'error');
-    } finally {
-        button.disabled = false;
-    }
-}
-
-// Function to send SIMPLE_TEXT message as a JSON object
-async function sendTextMessage() {
-    const textMessage = document.getElementById('textMessageInput').value.trim();
-
-    if (textMessage) {
-        const payload = { message: textMessage };
-        try {
-            await handleSendMessage('SIMPLE_TEXT', payload, 'sendTextButton');
-            document.getElementById('textMessageInput').value = '';
-            document.getElementById('textMessageInput').focus();
-        } catch (error) {
-            logger.error(`Failed to send SIMPLE_TEXT message: ${error.message}`);
-            appendMessage(`Failed to send SIMPLE_TEXT: ${error.message}`, 'error');
-        }
-    } else {
-        logger.warn("Please enter a message to send.");
-        appendMessage("Please enter a message to send.", 'warn');
-    }
-}
-
-// Function to publish MQTT event
-async function publishMqttEvent() {
-    const topic = document.getElementById('topicSelect').value;
-    const index = parseInt(document.getElementById('indexSelect').value, 10);
-    const state = document.getElementById('stateSelect').value;
-
-    if (!topic || isNaN(index) || !state) {
-        logger.warn("Please select a topic, an index, and enter a payload.");
-        appendMessage("Please select a topic, an index, and enter a payload.", 'warn');
-        return;
-    }
-
-    const payload = { topic, index, state };
-    await handleSendMessage('MQTT_PUBLISH_EVENT', payload, 'publishButton');
-}
-
-async function requestMqttConfig() {
-    try {
-        logger.info("Requesting MQTT configuration...");
-        await wsManager.sendMessage('MQTT_GET_CONFIG', {});
-    } catch (error) {
-        logger.error(`Failed to send MQTT_GET_CONFIG message: ${error.message}`);
-        appendMessage(`Failed to send MQTT_GET_CONFIG message: ${error.message}`, 'error');
-    }
-}
-
-// Append a message to the messages output pane with log level
-function appendMessage(text, level = 'info') {
-    const messageElement = document.createElement('div');
-    messageElement.className = `message log-level-${level}`;
-    messageElement.textContent = text;
-    messagesDiv.appendChild(messageElement);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-// Clear the content of an output pane
-function clearOutputPane(div) {
-    while (div.firstChild) {
-        div.removeChild(div.firstChild);
-    }
-}
-
-window.addEventListener('load', async () => {
-    await initializeWebSocket();
-
-    makeResizable(messagesDiv);
-    makeResizable(logOutputDiv);
-
-    // Add event listeners for click events
-    document.getElementById('sendTextButton').addEventListener('click', sendTextMessage);
-    document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
-    document.getElementById('clearMessagesButton').addEventListener('click', () => clearOutputPane(messagesDiv));
-    document.getElementById('clearLogButton').addEventListener('click', () => clearOutputPane(logOutputDiv));
-});
-
-window.addEventListener('beforeunload', () => {
-    if (wsManager) {
-        wsManager.disconnect();
-    }
-});
-</script>
+<script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -115,7 +115,7 @@ static void load_and_send_mqtt_messages_from_file(struct lws *wsi, const char *f
                 char *send_str = cJSON_PrintUnformatted(send_obj);
                 if (send_str) {
                     printf("Sending MQTT message:\n%s\n", send_str);
-                    lws_write(wsi, (unsigned char *)send_str, strlen(send_str), LWS_WRITE_TEXT);
+                    // lws_write(wsi, (unsigned char *)send_str, strlen(send_str), LWS_WRITE_TEXT);
                     free(send_str); // 正确释放打印出来的 JSON 字符串
                 } else {
                     fprintf(stderr, "Failed to print JSON string.\n");

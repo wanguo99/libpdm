@@ -12,13 +12,58 @@ void sigint_handler(int sig) {
     destroy_flag = 1;
 }
 
-#define PDM_SWITCH_LED_ON "echo -s 1 > /dev/pdm_client/pdm_switch.0"
-#define PDM_SWITCH_LED_OFF "echo -s 0 > /dev/pdm_client/pdm_switch.0"
+// Function to send a reply back to the client with the specified format
+static void ws_txrx_send_reply(struct lws *wsi, const char *type) {
+    if (!type) {
+        fprintf(stderr, "Invalid type for sending reply.\n");
+        return;
+    }
 
+    // Create the response message with the specified format
+    char response[256];
+    snprintf(response, sizeof(response), "[reply]: received %s message", type);
 
-static int callback_websocket(struct lws *wsi,
-                              enum lws_callback_reasons reason,
-                              void *user, void *in, size_t len) {
+    // Write the response back to the client
+    lws_write(wsi, (unsigned char *)response, strlen(response), LWS_WRITE_TEXT);
+}
+
+// Function to handle SIMPLE_TEXT messages
+static void ws_txrx_handle_simple_text(struct lws *wsi, cJSON *payload_item) {
+    cJSON *message_item = cJSON_GetObjectItemCaseSensitive(payload_item, "message");
+
+    if (cJSON_IsString(message_item)) {
+        printf("Extracted SIMPLE_TEXT message: %s\n", message_item->valuestring);
+        ws_txrx_send_reply(wsi, "SIMPLE_TEXT");
+    } else {
+        printf("Invalid SIMPLE_TEXT payload.\n");
+    }
+}
+
+// Function to handle MQTT_EVENT messages
+static void ws_txrx_handle_mqtt_event(struct lws *wsi, cJSON *payload_item) {
+    cJSON *topic_item = cJSON_GetObjectItemCaseSensitive(payload_item, "topic");
+    cJSON *index_item = cJSON_GetObjectItemCaseSensitive(payload_item, "index");
+    cJSON *state_item = cJSON_GetObjectItemCaseSensitive(payload_item, "state");
+
+    if (cJSON_IsString(topic_item) && cJSON_IsNumber(index_item) && cJSON_IsString(state_item)) {
+        const char *topic = topic_item->valuestring;
+        int index = index_item->valueint;
+        const char *state = state_item->valuestring;
+
+        printf("Extracted MQTT_EVENT topic: %s\n", topic);
+        printf("Extracted MQTT_EVENT index: %d\n", index);
+        printf("Extracted MQTT_EVENT state: %s\n", state);
+
+        ws_txrx_send_reply(wsi, "MQTT_EVENT");
+    } else {
+        printf("Invalid MQTT_EVENT payload.\n");
+    }
+}
+
+// Main callback function for handling WebSocket events
+static int ws_txrx_callback(struct lws *wsi,
+                                   enum lws_callback_reasons reason,
+                                   void *user, void *in, size_t len) {
     switch (reason) {
         case LWS_CALLBACK_RECEIVE: {
             char buffer[LWS_PRE + 512];
@@ -30,72 +75,31 @@ static int callback_websocket(struct lws *wsi,
             // Parse the JSON string directly here
             cJSON *root = cJSON_ParseWithLength(buffer + LWS_PRE, len);
             if (!root) {
-                fprintf(stderr, "Error before: [%s]\n", cJSON_GetErrorPtr());
+                fprintf(stderr, "Error parsing JSON: [%s]\n", cJSON_GetErrorPtr());
                 break;
             }
 
-            cJSON *type = cJSON_GetObjectItemCaseSensitive(root, "type");
-            cJSON *topic = cJSON_GetObjectItemCaseSensitive(root, "topic");
-            cJSON *index = cJSON_GetObjectItemCaseSensitive(root, "index");
-            cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, "payload");
+            cJSON *type_item = cJSON_GetObjectItemCaseSensitive(root, "type");
+            cJSON *payload_item = cJSON_GetObjectItemCaseSensitive(root, "payload");
 
-            char *extracted_topic = NULL;
-            char *extracted_index = NULL;
-            char *extracted_payload = NULL;
-
-            // Check if the type is "publish_mqtt_event" and both topic and payload are strings
-            if (cJSON_IsString(topic) && cJSON_IsString(payload) &&
-                (type != NULL) && (strcmp(type->valuestring, "publish_mqtt_event") == 0)) {
-
-                // Extract the values directly into local variables
-                extracted_topic = strdup(topic->valuestring); // 使用 strdup 复制字符串并分配内存
-                extracted_payload = strdup(payload->valuestring);
-                extracted_index = strdup(index->valuestring);
-
-                if (extracted_topic == NULL || extracted_index == NULL || extracted_payload == NULL) {
-                    // 如果其中一个复制失败，确保释放已分配的内存
-                    free(extracted_topic);
-                    free(extracted_index);
-                    free(extracted_payload);
-                    cJSON_Delete(root);
-                    fprintf(stderr, "Memory allocation failed.\n");
-                    break;
-                }
-
-                printf("Extracted topic: %s\n", extracted_topic);
-                printf("Extracted index: %s\n", extracted_index);
-                printf("Extracted payload: %s\n", extracted_payload);
-
-				if (!strcmp(extracted_topic, "SWITCH") && !strcmp(extracted_payload, "ON")) {
-					system(PDM_SWITCH_LED_ON);
-				}
-				else if (!strcmp(extracted_topic, "SWITCH") && !strcmp(extracted_payload, "OFF")) {
-					system(PDM_SWITCH_LED_OFF);
-				}
-
-                // Add a prefix to the received message before echoing it back
-                const char *prefix = "[reply] : ";
-                size_t prefix_len = strlen(prefix);
-                size_t new_msg_len = strlen(prefix) + strlen(extracted_topic) + strlen(extracted_payload) + 2; // +2 for ": " separator
-
-                if (new_msg_len > sizeof(buffer) - LWS_PRE - 1) {
-                    // If the message with prefix is too long, truncate it
-                    new_msg_len = sizeof(buffer) - LWS_PRE - 1;
-                }
-
-                snprintf(buffer + LWS_PRE, sizeof(buffer) - LWS_PRE, "%s%s: %s", prefix, extracted_topic, extracted_payload);
-                len = strlen(buffer + LWS_PRE);
-
-                // Echo the modified message back to the client
-                lws_write(wsi, (unsigned char *)buffer + LWS_PRE, len, LWS_WRITE_TEXT);
-            } else {
-                printf("Message does not contain expected fields or type mismatch.\n");
+            if (!cJSON_IsString(type_item) || !payload_item) {
+                cJSON_Delete(root);
+                fprintf(stderr, "Invalid or missing 'type' or 'payload' field.\n");
+                break;
             }
 
-            // Clean up cJSON object and free allocated memory
+            const char *type = type_item->valuestring;
+
+            // Handle different types of messages based on the 'type' field
+            if (strcmp(type, "SIMPLE_TEXT") == 0) {
+                ws_txrx_handle_simple_text(wsi, payload_item);
+            } else if (strcmp(type, "MQTT_EVENT") == 0) {
+                ws_txrx_handle_mqtt_event(wsi, payload_item);
+            } else {
+                printf("Unsupported message type: %s\n", type);
+            }
+
             cJSON_Delete(root);
-            free(extracted_topic);
-            free(extracted_payload);
             break;
         }
         default:
@@ -105,7 +109,7 @@ static int callback_websocket(struct lws *wsi,
 }
 
 static struct lws_protocols protocols[] = {
-    { "echo-protocol", callback_websocket, 0, 0 },
+    { "rxtx-protocol", ws_txrx_callback, 0, 0 },
     { NULL, NULL, 0, 0 }
 };
 
@@ -121,7 +125,7 @@ int main() {
 
     context = lws_create_context(&info);
     if (context == NULL) {
-        fprintf(stderr, "libwebsockets init failed\n");
+        fprintf(stderr, "lws_create_context failed\n");
         return -1;
     }
 
@@ -129,7 +133,7 @@ int main() {
 
     while (!destroy_flag) {
         lws_service(context, 50);
-        usleep(10000); // Sleep for 10ms
+        usleep(10000);
     }
 
     lws_context_destroy(context);

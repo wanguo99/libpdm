@@ -1,5 +1,3 @@
-// js/ws_manager.js
-
 import { Logger } from './utils.js';
 
 class WebSocketManager {
@@ -22,7 +20,7 @@ class WebSocketManager {
                 return;
             }
 
-            this.websocket = new WebSocket(this.wsUri);
+            this.websocket = new WebSocket(this.wsUri, 'rxtx-protocol');
 
             this.websocket.onopen = () => {
                 this.logger.info("Connected to WebSocket server.");
@@ -54,15 +52,24 @@ class WebSocketManager {
         }
     }
 
-    sendMessage(message) {
+    sendMessage(type, payload) {
         return new Promise((resolve, reject) => {
+            // 构造消息对象
+            const messageObject = {
+                type: type,
+                payload: payload
+            };
+
+            // 将消息对象转换为 JSON 字符串
+            const messageToSend = JSON.stringify(messageObject);
+
             if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
                 try {
-                    this.websocket.send(message);
-                    this.logger.info(`Sent message: ${message}`);
+                    this.websocket.send(messageToSend);
+                    this.logger.info(`Sent message: ${messageToSend}`);
                     resolve(); // 成功发送消息后解析 Promise
                 } catch (error) {
-                    this.logger.error("WebSocket is not open or an error occurred while sending the message.");
+                    this.logger.error("An error occurred while sending the message.");
                     reject(error); // 发送失败时拒绝 Promise
                 }
             } else {
@@ -74,41 +81,6 @@ class WebSocketManager {
 
     onMessage(callback) {
         this.messageCallbacks.push(callback);
-    }
-
-    async publishMqttEvent(topic, index, payload) {
-        this.logger.info("Checking WebSocket status...");
-
-        // Check if WebSocket is open and try to reconnect if necessary
-        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-            this.logger.info("WebSocket is not open. Attempting to reconnect...");
-            try {
-                await this.connect();
-            } catch (error) {
-                this.logger.error(`Failed to reconnect: ${error.message}`);
-                return;
-            }
-        }
-
-        this.logger.info('WebSocket is open, proceeding to send message.');
-
-        if (topic && index !== undefined && payload !== undefined) {
-            try {
-                const message = JSON.stringify({
-                    type: 'publish_mqtt_event',
-                    topic: topic,
-                    index: index, // Add the index field to the message object
-                    payload: payload
-                });
-                this.logger.info(`Constructed MQTT event message: ${message}`);
-                this.sendMessage(message);
-                this.logger.info('Message sent successfully.');
-            } catch (error) {
-                this.logger.error(`Failed to construct or send message: ${error.message}`);
-            }
-        } else {
-            this.logger.error("Please select a topic, an index, and enter a payload.");
-        }
     }
 }
 

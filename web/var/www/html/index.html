@@ -1,239 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>WebSocket Client</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #333333; /* 设置深灰色背景 */
-            color: #b3b3b3; /* 设置更浅一点的灰色文本颜色 */
-            padding: 20px; /* Add padding to the body for spacing */
-        }
-        #messages {
-            width: 75%; /* 设置消息区域宽度为75% */
-            border: 1px solid #444; /* 更暗的边框颜色 */
-            height: 300px;
-            overflow-y: scroll;
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #444444; /* 消息区域的深灰色背景 */
-            color: #b3b3b3; /* 消息文本颜色 */
-        }
-        .message {
-            margin: 5px 0;
-        }
-        input, select {
-            padding: 5px;
-            margin-bottom: 10px;
-            background-color: #4d4d4d; /* 输入框和选择菜单的深灰色背景 */
-            color: #b3b3b3; /* 输入框和选择菜单的文本颜色 */
-            border: 1px solid #444; /* 边框颜色 */
-            display: inline-block; /* 允许与其他元素在同一行显示 */
-        }
-        select {
-            width: auto; /* 让选择菜单根据内容自适应宽度 */
-        }
-        button {
-            padding: 5px 10px;
-            background-color: #4d4d4d; /* 按钮的深灰色背景 */
-            color: #b3b3b3; /* 按钮的文本颜色 */
-            border: 1px solid #444; /* 边框颜色 */
-            display: inline-block; /* 按钮在行内显示 */
-            margin-bottom: 10px; /* 添加底部间距 */
-            width: auto; /* 让按钮根据内容自适应宽度 */
-        }
-        #log-output {
-            border: 1px solid #444; /* 更暗的日志输出边框 */
-            padding: 10px;
-            margin-top: 20px;
-            background-color: #444444; /* 日志输出区域的深灰色背景 */
-            color: #b3b3b3; /* 日志文本颜色 */
-            max-width: 50%; /* 设置日志输出区域宽度为半屏 */
-        }
-        .log-entry {
-            margin: 5px 0;
-        }
-        .log-level-error {
-            color: #ff5722; /* 错误级别的日志条目的红色 */
-        }
-        .log-level-warn {
-            color: #fdd835; /* 警告级别的日志条目的橙色 */
-        }
-        .log-level-info {
-            color: #b3b3b3; /* 信息级别的日志条目的更浅灰色 */
-        }
+    <head>
+        <meta charset="UTF-8">
+        <title>WebSocket Client</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #333333;
+                color: #b3b3b3;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+            }
+            #container {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+            .output-pane {
+                width: 75%;
+                height: 300px;
+                overflow-y: scroll;
+                padding: 10px;
+                margin-bottom: 10px;
+                resize: both;
+                background-color: #444444;
+                color: #b3b3b3;
+                border: 1px solid #444;
+                text-align: left;
+                position: relative; /* Ensure the resize handle is positioned within this element */
+            }
+            .section {
+                margin-top: 20px;
+            }
+            input, select, button {
+                padding: 5px;
+                margin-bottom: 10px;
+                background-color: #4d4d4d;
+                color: #b3b3b3;
+                border: 1px solid #444;
+                display: inline-block;
+            }
+            select {
+                width: auto;
+            }
+            button {
+                width: auto;
+            }
+            .message, .log-entry {
+                margin: 5px 0;
+            }
+            .resize-handle {
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                width: 10px;
+                height: 10px;
+                background-color: #666;
+                cursor: se-resize;
+            }
+            /* Ensure all text is left-aligned */
+            body, input, select, button, .output-pane {
+                text-align: left;
+            }
+            .log-entry {
+                padding: 5px;
+                margin: 5px 0;
+                border-radius: 3px;
+            }
+            .log-level-debug { background-color: #f0f0f0; color: #000; }
+            .log-level-info { background-color: #d9edf7; color: #31708f; }
+            .log-level-warn { background-color: #fcf8e3; color: #8a6d3b; }
+            .log-level-error { background-color: #f2dede; color: #a94442; }
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <h1>WebSocket Client</h1>
 
-        /* 新增清屏按钮的样式 */
-        #clearMessagesButton {
-            padding: 5px 10px;
-            background-color: #4d4d4d;
-            color: #b3b3b3;
-            border: 1px solid #444;
-            display: inline-block; /* 确保按钮在行内显示 */
-            margin-bottom: 10px; /* 添加底部间距 */
-            width: auto; /* 让按钮根据内容自适应宽度 */
-        }
+            <!-- Messages Output Section -->
+            <div class="section">
+                <h2>Messages Output:</h2>
+                <button id="clearMessagesButton">Clear Messages</button>
+                <div id="messages" class="output-pane"></div>
+            </div>
 
-        /* 确保所有文本左对齐 */
-        body, input, select, button, #log-output {
-            text-align: left;
-        }
-    </style>
-</head>
-<body>
-    <h1>WebSocket Client</h1>
-    <button id="clearMessagesButton">clear messages</button>
-    <div id="messages"></div>
+            <!-- Sent Message Test Section -->
+            <div class="section">
+                <h2>Sent Message Test:</h2>
+                <input type="text" id="messageInput" placeholder="Type a message..." />
+                <button id="sendButton">Send</button>
+            </div>
 
-    <!-- Websocket 发送测试 -->
-    <h2>Sent Message Test</h2>
-    <input type="text" id="messageInput" placeholder="Type a message..." />
-    <button id="sendButton">Send</button>
+            <!-- MQTT Publish Test Section -->
+            <div class="section">
+                <h2>MQTT Publish Test:</h2>
+                <select id="topicSelect">
+                    <option value="">Select a topic...</option>
+                    <option value="SWITCH">SWITCH</option>
+                    <option value="DIMMER">DIMMER</option>
+                </select>
+                <select id="indexSelect">
+                    <option value="">Select an index...</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+                <select id="payloadSelect">
+                    <option value="">Select a payload...</option>
+                    <option value="ON">ON</option>
+                    <option value="OFF">OFF</option>
+                </select>
+                <button id="publishButton">Publish</button>
+            </div>
 
-    <!-- MQTT 发布测试 -->
-    <h2>MQTT Publish Test</h2>
-    <select id="topicSelect">
-        <option value="">Select a topic...</option>
-        <option value="SWITCH">SWITCH</option>
-        <option value="DIMMER">DIMMER</option>
-        <!-- Add more topics as needed -->
-    </select>
-    <select id="indexSelect" placeholder="Select index...">
-        <option value="">Select a index...</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <!-- Add more payloads as needed -->
-    </select>
-    <select id="payloadSelect" placeholder="Select payload...">
-        <option value="">Select a payload...</option>
-        <option value="ON">ON</option>
-        <option value="OFF">OFF</option>
-        <!-- Add more topics as needed -->
-    </select>
-    <button id="publishButton">Publish</button>
+            <!-- Log Output Section -->
+            <div class="section">
+                <h2>Log Output:</h2>
+                <button id="clearLogButton">Clear Log</button>
+                <div id="log-output" class="output-pane"></div>
+            </div>
+        </div>
 
-    <!-- 日志输出区域 -->
-    <h2>Log Output</h2>
-    <button id="clearLogButton">Clear Log</button>
-    <div id="log-output"></div>
+        <script type="module">
+            import { WebSocketManager } from './js/ws_manager.js';
+            import { Logger } from './js/utils.js';
 
-    <script type="module">
-        import { WebSocketManager } from './js/ws_manager.js';
-        import { Logger } from './js/utils.js';
+            const wsManager = new WebSocketManager('ws://10.10.0.221:8080');
+            const messagesDiv = document.getElementById('messages');
+            const logOutputDiv = document.getElementById('log-output');
+            const logger = new Logger(logOutputDiv);
 
-        const wsManager = new WebSocketManager('ws://10.10.0.221:8080');
-        const messagesDiv = document.getElementById('messages');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
+            function makeResizable(div) {
 
-        const logger = new Logger('log-output');
+                const resizeHandle = document.createElement("div");
+                resizeHandle.classList.add("resize-handle");
+                div.appendChild(resizeHandle);
 
-        // Connect to WebSocket server on page load and handle connection close on unload
-        window.addEventListener('load', async () => {
-            try {
-                await wsManager.connect();
-                wsManager.onMessage((message) => {
-                    appendMessage(`Received: ${message}`);
-                });
-            } catch (error) {
-                logger.error(`Failed to connect to WebSocket server: ${error.message}`);
+                let startX, startY, startWidth, startHeight;
+
+                resizeHandle.onmousedown = function(e) {
+                    e.preventDefault();
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startWidth = div.offsetWidth;
+                    startHeight = div.offsetHeight;
+
+                    // When the mouse moves, adjust the size
+                    document.onmousemove = function(e) {
+                        div.style.width = `${startWidth + (e.clientX - startX)}px`;
+                        div.style.height = `${startHeight + (e.clientY - startY)}px`;
+                    };
+
+                    // Stop resizing
+                    document.onmouseup = function() {
+                        document.onmousemove = document.onmouseup = null;
+                    }
+                }
             }
 
-            // Add event listener for the button click and keydown event
-            sendButton.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keydown', handleKeyDown);
-            document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
-            document.getElementById('clearMessagesButton').addEventListener('click', clearMessages);
-            document.getElementById('clearLogButton').addEventListener('click', () => {
-                logger.clear();
-            });
-        });
-
-        window.addEventListener('beforeunload', () => {
-            wsManager.disconnect();
-        });
-
-        function sendMessage() {
-            const message = messageInput.value.trim();
-            if (message) {
-                sendButton.disabled = true; // Provide UI feedback while sending
-                wsManager.sendMessage(message)
-                    .then(() => {
-                        appendMessage(`Sent: ${message}`);
-                        messageInput.value = '';
-                        messageInput.focus(); // Focus back on the input after sending
-                        sendButton.disabled = false;
-                    })
-                    .catch(error => {
-                        logger.error(`Failed to send message: ${error.message}`);
-                        sendButton.disabled = false;
+            window.addEventListener('load', async () => {
+                try {
+                    await wsManager.connect();
+                    wsManager.onMessage((message) => {
+                        appendMessage(`Received: ${message}`);
                     });
+                } catch (error) {
+                    logger.error(`Failed to connect to WebSocket server: ${error.message}`);
+                }
+
+                makeResizable(messagesDiv);
+                makeResizable(logOutputDiv);
+
+                // Add event listeners for button clicks and keydown events
+                document.getElementById('sendButton').addEventListener('click', sendMessage);
+                document.getElementById('messageInput').addEventListener('keydown', handleKeyDown);
+                document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
+                document.getElementById('clearMessagesButton').addEventListener('click', () => clearOutputPane(messagesDiv));
+                document.getElementById('clearLogButton').addEventListener('click', () => clearOutputPane(logOutputDiv));
+            });
+
+            window.addEventListener('beforeunload', () => {
+                wsManager.disconnect();
+            });
+
+            function sendMessage() {
+                const message = document.getElementById('messageInput').value.trim();
+                if (message) {
+                    document.getElementById('sendButton').disabled = true;
+                    wsManager.sendMessage(message)
+                        .then(() => {
+                            appendMessage(`Sent: ${message}`);
+                            document.getElementById('messageInput').value = '';
+                            document.getElementById('messageInput').focus();
+                            document.getElementById('sendButton').disabled = false;
+                        })
+                        .catch(error => {
+                            logger.info(`Failed to send message: ${error.message}`);
+                            document.getElementById('sendButton').disabled = false;
+                        });
+                }
             }
-        }
 
-        async function publishMqttEvent() {
-            const topic = document.getElementById('topicSelect').value;
-            const index = document.getElementById('indexSelect').value;
-            const payload = document.getElementById('payloadSelect').value;
+            async function publishMqttEvent() {
+                const topic = document.getElementById('topicSelect').value;
+                const index = document.getElementById('indexSelect').value;
+                const payload = document.getElementById('payloadSelect').value;
 
-            // Validate input
-            if (!topic || !index || !payload) {
-                logger.warn("Please select a topic, an index, and enter a payload.");
-                return;
+                if (!topic || !index || !payload) {
+                    logger.warn("Please select a topic, an index, and enter a payload.");
+                    return;
+                }
+
+                try {
+                    document.getElementById('publishButton').disabled = true;
+                    logger.info(`Attempting to publish MQTT event with topic:${topic}, index:${index}, payload:${payload}`);
+                    await wsManager.publishMqttEvent(topic, index, payload);
+                    const message = `Published MQTT event with topic:${topic}, index:${index}, payload:${payload}`;
+                    logger.info(message);
+                    appendMessage(`Sent MQTT: ${message}`);
+
+                    // Optionally clear the payload selection after successful publish
+                    // document.getElementById('payloadSelect').value = '';
+                } catch (error) {
+                    logger.error(`Failed to publish MQTT event: ${error.message}`);
+                    appendMessage(`Failed to send MQTT: ${error.message}`);
+                } finally {
+                    document.getElementById('publishButton').disabled = false;
+                }
             }
 
-            try {
-                // Disable the button to provide UI feedback while publishing
-                document.getElementById('publishButton').disabled = true;
-
-                // Log the attempt to publish the MQTT event
-                logger.info(`Attempting to publish MQTT event with topic:${topic}, index:${index}, payload:${payload}`);
-
-                // Publish the MQTT event using WebSocketManager
-                await wsManager.publishMqttEvent(topic, index, payload);
-
-                // Log success and append message to messages area
-                const message = `Published MQTT event with topic:${topic}, index:${index}, payload:${payload}`;
-                logger.info(message);
-                appendMessage(`Sent MQTT: ${message}`);
-
-                // Optionally clear the payload selection after successful publish
-                // document.getElementById('payloadSelect').value = '';
-
-            } catch (error) {
-                // Log error and append failure message to messages area
-                logger.error(`Failed to publish MQTT event: ${error.message}`);
-                appendMessage(`Failed to send MQTT: ${error.message}`);
-            } finally {
-                // Ensure the button is re-enabled regardless of success or failure
-                document.getElementById('publishButton').disabled = false;
+            function handleKeyDown(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                    event.preventDefault();
+                }
             }
-        }
 
-        function handleKeyDown(event) {
-            // Check if the Enter key was pressed (Key code 13 or 'Enter')
-            if (event.key === 'Enter') {
-                sendMessage();
-                event.preventDefault(); // Prevent form submission or default action
+            function appendMessage(text) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                messageElement.textContent = text;
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
-        }
 
-        function appendMessage(text) {
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message';
-            messageElement.textContent = text;
-            messagesDiv.appendChild(messageElement);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function clearMessages() {
-            while (messagesDiv.firstChild) {
-                messagesDiv.removeChild(messagesDiv.firstChild);
+            function clearOutputPane(div) {
+                while (div.firstChild) {
+                    div.removeChild(div.firstChild);
+                }
             }
-            logger.info(`clear messages`);
-        }
-    </script>
-</body>
+        </script>
+    </body>
 </html>

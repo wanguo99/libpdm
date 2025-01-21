@@ -4,5 +4,5 @@ project(PDM)
 
 add_subdirectory(lib)
 add_subdirectory(app/pdm_test)
-add_subdirectory(app/websocket_server)
+add_subdirectory(app/ws_server)
 add_subdirectory(web)

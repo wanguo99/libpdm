@@ -37,7 +37,7 @@ function makeResizable(div) {
 async function initializeWebSocket() {
     try {
         if (!wsManager) {
-            wsManager = new WebSocketClient('ws://10.10.0.201:8080');
+            wsManager = new WebSocketClient('ws://10.10.0.221:8080');
 
             // Setup message handling after successfully connecting
             wsManager.onMessage = async (message) => {

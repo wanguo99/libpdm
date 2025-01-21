@@ -1,5 +1,5 @@
-import { WebSocketManager } from './ws_manager.js';
-import { Logger } from './utils.js';
+import { WebSocketClient } from './WebSocketClient.js';
+import { Logger } from './Logger.js';
 
 const messagesDiv = document.getElementById('messages');
 const logOutputDiv = document.getElementById('log-output');
@@ -37,7 +37,7 @@ function makeResizable(div) {
 async function initializeWebSocket() {
     try {
         if (!wsManager) {
-            wsManager = new WebSocketManager('ws://10.10.0.221:8080');
+            wsManager = new WebSocketClient('ws://10.10.0.201:8080');
 
             // Setup message handling after successfully connecting
             wsManager.onMessage = async (message) => {
@@ -60,23 +60,22 @@ async function initializeWebSocket() {
 
         await wsManager.connect();
         logger.info("WebSocket connection established.");
-        requestMqttConfig(); // Directly call without awaiting since it's not necessary here
     } catch (error) {
         logger.error(`Failed to connect to WebSocket server: ${error.message}`);
     }
 }
 
 // Common function for sending messages and handling UI updates
-async function handleSendMessage(type, payload, buttonId) {
+async function handleSendMessage(type, data, buttonId) {
     const button = document.getElementById(buttonId);
     try {
         button.disabled = true;
-        logger.info(`Attempting to send ${type} message: ${JSON.stringify(payload)}`);
-        await wsManager.sendMessage(type, payload);
-        appendMessage(`Sent ${type}: ${JSON.stringify(payload)}`, 'info');
+        logger.info(`Attempting to send message: ${JSON.stringify(data)}`);
+        await wsManager.sendMessage(type, data); // Only pass data
+        appendMessage(`Sent message: ${JSON.stringify(data)}`, 'info');
     } catch (error) {
-        logger.error(`Failed to send ${type}: ${error.message}`);
-        appendMessage(`Failed to send ${type}: ${error.message}`, 'error');
+        logger.error(`Failed to send message: ${error.message}`);
+        appendMessage(`Failed to send message: ${error.message}`, 'error');
     } finally {
         button.disabled = false;
     }
@@ -87,9 +86,9 @@ async function sendTextMessage() {
     const textMessage = document.getElementById('textMessageInput').value.trim();
 
     if (textMessage) {
-        const payload = { message: textMessage };
+        const data = { message: textMessage };
         try {
-            await handleSendMessage('SIMPLE_TEXT', payload, 'sendTextButton');
+            await handleSendMessage("SIMPLE_TEXT", data, 'sendTextButton');
             document.getElementById('textMessageInput').value = '';
             document.getElementById('textMessageInput').focus();
         } catch (error) {
@@ -114,14 +113,15 @@ async function publishMqttEvent() {
         return;
     }
 
-    const payload = { topic, index, state };
-    await handleSendMessage('MQTT_PUBLISH_EVENT', payload, 'publishButton');
+    const data = { topic, index, state };
+    await handleSendMessage('MQTT_PUBLISH_EVENT', data, 'publishButton');
 }
 
 async function requestMqttConfig() {
     try {
         logger.info("Requesting MQTT configuration...");
-        await wsManager.sendMessage('MQTT_GET_CONFIG', {});
+        const data = {};
+        await wsManager.sendMessage("GET_MQTT_TOPIC_INFO", data, 'getTopicButton');
     } catch (error) {
         logger.error(`Failed to send MQTT_GET_CONFIG message: ${error.message}`);
         appendMessage(`Failed to send MQTT_GET_CONFIG message: ${error.message}`, 'error');
@@ -154,6 +154,7 @@ window.addEventListener('load', async () => {
     document.getElementById('sendTextButton').addEventListener('click', sendTextMessage);
     document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
     document.getElementById('clearMessagesButton').addEventListener('click', () => clearOutputPane(messagesDiv));
+    document.getElementById('getTopicButton').addEventListener('click', requestMqttConfig);
     document.getElementById('clearLogButton').addEventListener('click', () => clearOutputPane(logOutputDiv));
 });
 

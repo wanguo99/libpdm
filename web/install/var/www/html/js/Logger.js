@@ -1,4 +1,4 @@
-// js/utils.js
+// js/Logger.js
 
 class Logger {
     constructor(logOutputId) {

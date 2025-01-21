@@ -9,14 +9,12 @@
 #include <cjson/cJSON.h>
 
 #define PORT 8080
-
-void get_mqtt_topic_info_handler(struct lws *wsi)
+#define MQTT_CONFIGURATION_FILE "/etc/websocket/mqtt_conf.json"
+void get_mqtt_config_handler(struct lws *wsi)
 {
-    const char *filename = "mqtt_topic_info.json";
-
-    FILE *file = fopen(filename, "r");
+    FILE *file = fopen(MQTT_CONFIGURATION_FILE, "r");
     if (!file) {
-        fprintf(stderr, "Error opening file: %s\n", filename);
+        fprintf(stderr, "Error opening file: %s\n", MQTT_CONFIGURATION_FILE);
         return;
     }
 
@@ -36,7 +34,7 @@ void get_mqtt_topic_info_handler(struct lws *wsi)
     fclose(file);
 
     if (read_length != length) {
-        fprintf(stderr, "Error reading file: %s\n", filename);
+        fprintf(stderr, "Error reading file: %s\n", MQTT_CONFIGURATION_FILE);
         free(data);
         return;
     }
@@ -46,9 +44,11 @@ void get_mqtt_topic_info_handler(struct lws *wsi)
     printf("-----------------------------\n");
     printf("%s\n", data);
 
+#if 0
     if (lws_write(wsi, (unsigned char *)data, read_length, LWS_WRITE_TEXT) < 0) {
         printf("Failed to send message.\n");
     }
+#endif
     free(data); // Ensure memory is freed after use
 }
 
@@ -122,8 +122,8 @@ static int ws_callback_simple(struct lws *wsi, enum lws_callback_reasons reason,
                 } else {
                     fprintf(stderr, "Error: Invalid SIMPLE_TEXT data\n");
                 }
-            } else if (strcmp(type->valuestring, "GET_MQTT_TOPIC_INFO") == 0) {
-                get_mqtt_topic_info_handler(wsi);
+            } else if (strcmp(type->valuestring, "GET_MQTT_CONFIG") == 0) {
+                get_mqtt_config_handler(wsi);
             } else {
                 fprintf(stderr, "Error: Unknown type %s\n", type->valuestring);
             }

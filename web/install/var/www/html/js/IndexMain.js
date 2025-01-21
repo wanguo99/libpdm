@@ -119,12 +119,12 @@ async function publishMqttEvent() {
 
 async function requestMqttConfig() {
     try {
-        logger.info("Requesting MQTT configuration...");
+        logger.info("Requesting MQTT Configuration...");
         const data = {};
-        await wsManager.sendMessage("GET_MQTT_TOPIC_INFO", data, 'getTopicButton');
+        await wsManager.sendMessage("GET_MQTT_CONFIG", data, 'requestMqttConfigButton');
     } catch (error) {
-        logger.error(`Failed to send MQTT_GET_CONFIG message: ${error.message}`);
-        appendMessage(`Failed to send MQTT_GET_CONFIG message: ${error.message}`, 'error');
+        logger.error(`Failed to send GET_MQTT_CONFIG message: ${error.message}`);
+        appendMessage(`Failed to send GET_MQTT_CONFIG message: ${error.message}`, 'error');
     }
 }
 
@@ -151,10 +151,10 @@ window.addEventListener('load', async () => {
     makeResizable(logOutputDiv);
 
     // Add event listeners for click events
-    document.getElementById('sendTextButton').addEventListener('click', sendTextMessage);
-    document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
     document.getElementById('clearMessagesButton').addEventListener('click', () => clearOutputPane(messagesDiv));
-    document.getElementById('getTopicButton').addEventListener('click', requestMqttConfig);
+    document.getElementById('sendTextButton').addEventListener('click', sendTextMessage);
+    document.getElementById('requestMqttConfigButton').addEventListener('click', requestMqttConfig);
+    document.getElementById('publishButton').addEventListener('click', publishMqttEvent);
     document.getElementById('clearLogButton').addEventListener('click', () => clearOutputPane(logOutputDiv));
 });
 
